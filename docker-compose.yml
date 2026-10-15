@@ -1,0 +1,52 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: testlink_web
+    restart: unless-stopped
+    ports:
+      - "${TESTLINK_PORT:-8080}:80"
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-testlink}
+      DB_USER: ${DB_USER:-testlink}
+      DB_PASSWORD: ${DB_PASSWORD:-testlink_pass}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_masterkey}
+      DB_TABLE_PREFIX: ${DB_TABLE_PREFIX:-}
+      TESTLINK_ADMIN_USER: ${TESTLINK_ADMIN_USER:-admin}
+      TESTLINK_ADMIN_PASSWORD: ${TESTLINK_ADMIN_PASSWORD:-admin}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - testlink_uploads:/var/testlink/upload_area
+      - testlink_logs:/var/testlink/logs
+
+  db:
+    image: mariadb:10.11
+    container_name: testlink_db
+    restart: unless-stopped
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --sql-mode="ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_masterkey}
+      MYSQL_DATABASE: ${DB_NAME:-testlink}
+      MYSQL_USER: ${DB_USER:-testlink}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-testlink_pass}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root --password=\"$${MYSQL_ROOT_PASSWORD}\" || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
+
+volumes:
+  mariadb_data:
+  testlink_uploads:
+  testlink_logs:
